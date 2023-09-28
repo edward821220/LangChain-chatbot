@@ -1,5 +1,11 @@
 import argparse
 from dotenv import load_dotenv
+from styles import bold, red, blue, green
+from prompt_toolkit import prompt
+from prompt_toolkit.styles import Style
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.history import InMemoryHistory
 from langchain.chains import LLMMathChain
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
@@ -9,29 +15,24 @@ from langchain.prompts import MessagesPlaceholder, SystemMessagePromptTemplate
 
 load_dotenv()
 
+kb = KeyBindings()
 
-def bold(text):
-    bold_start = "\033[1m"
-    bold_end = "\033[0m"
-    return bold_start + text + bold_end
-
-
-def green(text):
-    green_start = "\033[32m"
-    green_end = "\033[0m"
-    return green_start + text + green_end
+style = Style.from_dict(
+    {
+        "prompt": "yellow bold",
+    }
+)
 
 
-def blue(text):
-    blue_start = "\033[34m"
-    blue_end = "\033[0m"
-    return blue_start + text + blue_end
+@kb.add("enter")
+def submit(event):
+    event.app.exit(result=event.app.current_buffer.text)
 
 
-def red(text):
-    red_start = "\033[31m"
-    red_end = "\033[0m"
-    return red_start + text + red_end
+@kb.add("down")
+def newline(event):
+    buffer = event.app.current_buffer
+    buffer.insert_text("\n")
 
 
 def main():
@@ -43,7 +44,7 @@ def main():
         "--system",
         type=str,
         help="A brief chatbot's system prompt",
-        default=None,
+        default="如果我問題用中文問的話，請一律用繁體中文(台灣)回答。",
     )
     parser.add_argument(
         "--model",
@@ -81,13 +82,10 @@ def main():
 
     agent_kwargs = {
         "extra_prompt_messages": [
+            SystemMessagePromptTemplate.from_template(args.system),
             MessagesPlaceholder(variable_name="chat_history"),
         ],
     }
-    if args.system:
-        agent_kwargs["extra_prompt_messages"].insert(
-            0, SystemMessagePromptTemplate.from_template(args.system)
-        )
 
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
@@ -100,14 +98,26 @@ def main():
         agent=AgentType.OPENAI_FUNCTIONS,
     )
 
+    history = InMemoryHistory()
+
     while True:
         try:
-            user_input = input(bold(blue("You: ")))
+            user_input = prompt(
+                "You: ",
+                multiline=True,
+                wrap_lines=True,
+                style=style,
+                key_bindings=kb,
+                history=history,
+                enable_history_search=True,
+                auto_suggest=AutoSuggestFromHistory(),
+            ).strip()
             res = agent_chain.run(user_input)
-            print(bold(red("GPT: ")), green(res))
+            print(bold(blue("GPT: ")), green(res))
+            history.append_string(user_input)
 
         except KeyboardInterrupt:
-            print("Exiting...")
+            print(bold(red("Exiting...")))
             break
 
 
