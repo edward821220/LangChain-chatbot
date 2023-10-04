@@ -13,6 +13,10 @@ from langchain.utilities import GoogleSerperAPIWrapper
 from langchain.agents import initialize_agent, Tool, AgentType
 from langchain.prompts import MessagesPlaceholder, SystemMessagePromptTemplate
 
+
+# import langchain
+# langchain.debug = True
+
 load_dotenv()
 
 kb = KeyBindings()
@@ -65,7 +69,7 @@ def main():
 
     llm = ChatOpenAI(model=args.model, temperature=args.temperature)
 
-    llm_math_chain = LLMMathChain.from_llm(llm=llm, verbose=True)
+    llm_math = LLMMathChain.from_llm(llm, verbose=True)
 
     tools = [
         Tool(
@@ -75,8 +79,8 @@ def main():
         ),
         Tool(
             name="Calculator",
-            func=llm_math_chain.run,
-            description="useful for when you need to answer questions about math",
+            func=llm_math.run,
+            description="useful for when you need to answer questions about math.",
         ),
     ]
 
@@ -92,7 +96,7 @@ def main():
     agent_chain = initialize_agent(
         tools,
         llm,
-        verbose=False,
+        verbose=True,
         memory=memory,
         agent_kwargs=agent_kwargs,
         agent=AgentType.OPENAI_FUNCTIONS,
@@ -113,7 +117,7 @@ def main():
                 auto_suggest=AutoSuggestFromHistory(),
             ).strip()
             res = agent_chain.run(user_input)
-            print(bold(blue("GPT: ")), green(res))
+            print(bold(blue("GPT: ")), bold(green(res)))
             history.append_string(user_input)
 
         except KeyboardInterrupt:
